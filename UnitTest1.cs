@@ -24,7 +24,7 @@ namespace SeleniumTests
         public void TestCommentSubmissionWithRating()
         {
             // Böngésző indítása és bejelentkezés oldala
-            driver.Navigate().GoToUrl("http://localhost:5173/login"); // A bejelentkezési oldal URL-je
+            driver.Navigate().GoToUrl("https://bibliothecamotusimaginibus.netlify.app/login"); // A bejelentkezési oldal URL-je
             var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
 
             // Bejelentkezési mezők várakozása
@@ -33,8 +33,8 @@ namespace SeleniumTests
             var loginButton = wait.Until(ExpectedConditions.ElementToBeClickable(By.Id("login")));
 
             // Bejelentkezési adatok kitöltése
-            usernameField.SendKeys("petiorosz");
-            passwordField.SendKeys("Petike11!");
+            usernameField.SendKeys("tester");
+            passwordField.SendKeys("tester123");
 
             // Bejelentkezés gombra kattintás
             loginButton.Click();
@@ -44,14 +44,14 @@ namespace SeleniumTests
 
             // Keresőmezőre várakozás és interakció
             var searchBox = wait.Until(ExpectedConditions.ElementIsVisible(By.CssSelector("input[type='search']")));
-            searchBox.SendKeys("Terminátor 2");
+            searchBox.SendKeys("Breaking Bad");
 
             // Keresés gombra kattintás
             var searchButton = wait.Until(ExpectedConditions.ElementToBeClickable(By.CssSelector("button[type='button']")));
             searchButton.Click();
 
             // Várakozás, hogy az oldal betöltődjön és az URL tartalmazza a keresési kifejezést
-            wait.Until(ExpectedConditions.UrlContains("http://localhost:5173/result?query=Termin%C3%A1tor%202"));
+            wait.Until(ExpectedConditions.UrlContains("https://bibliothecamotusimaginibus.netlify.app/result?query=Breaking%20Bad"));
 
             // Várakozás, hogy az első film linkje látható és kattintható legyen
             var firstMovieLink = wait.Until(ExpectedConditions.ElementToBeClickable(By.CssSelector(".image-link")));
@@ -68,7 +68,14 @@ namespace SeleniumTests
 
             // Komment mezőre és a gombra várakozás
             var commentBox = wait.Until(ExpectedConditions.ElementIsVisible(By.CssSelector("#comment")));
-            var submitButton = wait.Until(ExpectedConditions.ElementToBeClickable(By.CssSelector("#send")));
+            var submitButton = wait.Until(ExpectedConditions.ElementIsVisible(By.CssSelector("#send")));
+
+            // Görgetés a gombhoz, hogy ne legyen akadályozva
+            IJavaScriptExecutor jsExecutor = (IJavaScriptExecutor)driver;
+            jsExecutor.ExecuteScript("arguments[0].scrollIntoView(true);", submitButton);
+
+            // Várakozás, hogy a gomb kattintható legyen
+            wait.Until(ExpectedConditions.ElementToBeClickable(submitButton));
 
             // Komment beírása
             commentBox.SendKeys("Ez egy teszt komment!");
@@ -76,7 +83,7 @@ namespace SeleniumTests
             // Komment gombra kattintás
             submitButton.Click();
 
-            // Várakozás a komment és értékelés megjelenésére
+            // Várakozás a komment és értékelés frissülésére
             Thread.Sleep(2000);  // Várakozás, hogy a komment és értékelés frissüljön
 
             // Ellenőrizze, hogy a komment megjelenik-e az értékelések között
