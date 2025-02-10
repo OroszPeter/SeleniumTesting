@@ -1,9 +1,10 @@
-﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Support.UI;
 using SeleniumExtras.WaitHelpers;
 using System;
+using System.Linq;
 using System.Threading;
 
 namespace SeleniumTests
@@ -23,86 +24,83 @@ namespace SeleniumTests
         [TestMethod]
         public void TestCommentSubmissionWithRating()
         {
-            // Böngésző indítása és bejelentkezés oldala
-            driver.Navigate().GoToUrl("https://bibliothecamotusimaginibus.netlify.app/login"); // A bejelentkezési oldal URL-je
+            driver.Navigate().GoToUrl("https://bibliothecamotusimaginibus.netlify.app/login");
             var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
 
-            // Bejelentkezési mezők várakozása
+            // Wait for login fields
             var usernameField = wait.Until(ExpectedConditions.ElementIsVisible(By.Id("username")));
             var passwordField = wait.Until(ExpectedConditions.ElementIsVisible(By.Id("password")));
             var loginButton = wait.Until(ExpectedConditions.ElementToBeClickable(By.Id("login")));
 
-            // Bejelentkezési adatok kitöltése
+            // Fill in credentials
             usernameField.SendKeys("tester");
             passwordField.SendKeys("tester123");
 
-            // Bejelentkezés gombra kattintás
-            loginButton.Click();
+            // Click login using JavaScript to avoid UI issues
+            IJavaScriptExecutor js = (IJavaScriptExecutor)driver;
+            js.ExecuteScript("arguments[0].click();", loginButton);
 
-            // Várakozás a sikeres bejelentkezésre és az átirányításra a főoldalra
+            // Wait for the main page to load and verify login success
             wait.Until(ExpectedConditions.UrlContains("/"));
+            Thread.Sleep(2000); // Small delay to allow login process completion
 
-            // Keresőmezőre várakozás és interakció
+            // Search for a movie
             var searchBox = wait.Until(ExpectedConditions.ElementIsVisible(By.CssSelector("input[type='search']")));
-            searchBox.SendKeys("Breaking Bad");
+            searchBox.SendKeys("Végzetes mélypont");
 
-            // Keresés gombra kattintás
             var searchButton = wait.Until(ExpectedConditions.ElementToBeClickable(By.CssSelector("button[type='button']")));
             searchButton.Click();
 
-            // Várakozás, hogy az oldal betöltődjön és az URL tartalmazza a keresési kifejezést
-            wait.Until(ExpectedConditions.UrlContains("https://bibliothecamotusimaginibus.netlify.app/result?query=Breaking%20Bad"));
+            wait.Until(ExpectedConditions.UrlContains("https://bibliothecamotusimaginibus.netlify.app/result?query=V%C3%A9gzetes%20m%C3%A9lypont"));
 
-            // Várakozás, hogy az első film linkje látható és kattintható legyen
             var firstMovieLink = wait.Until(ExpectedConditions.ElementToBeClickable(By.CssSelector(".image-link")));
             firstMovieLink.Click();
 
-            // Várakozás, hogy a film oldal betöltődjön
             wait.Until(ExpectedConditions.ElementIsVisible(By.CssSelector(".container.pt-5.w-75")));
 
-            // Értékelés szimulálása (például 3 csillag)
-            var stars = wait.Until(d => d.FindElements(By.CssSelector(".star-rating .star"))); // Várakozás a csillagok elemére
-            Microsoft.VisualStudio.TestTools.UnitTesting.Assert.IsTrue(stars.Count > 0, "Nem találhatóak a csillagok.");
+            // Simulate rating selection (3 stars)
+            var stars = wait.Until(d => d.FindElements(By.CssSelector(".star-rating .star")));
+            Microsoft.VisualStudio.TestTools.UnitTesting.Assert.IsTrue(stars.Count > 0, "Stars not found.");
 
-            stars[2].Click(); // A harmadik csillag kiválasztása (3-as értékelés)
+            // Scroll down to make sure stars and comment box are visible
+            js.ExecuteScript("arguments[0].scrollIntoView(true);", stars[0]); // Scroll to the first star
+            wait.Until(ExpectedConditions.ElementToBeClickable(stars[2])).Click(); // Click third star (rating)
 
-            // Komment mezőre és a gombra várakozás
+            // Now scroll down to the comment box and submit button
             var commentBox = wait.Until(ExpectedConditions.ElementIsVisible(By.CssSelector("#comment")));
             var submitButton = wait.Until(ExpectedConditions.ElementIsVisible(By.CssSelector("#send")));
 
-            // Görgetés a gombhoz, hogy ne legyen akadályozva
-            IJavaScriptExecutor jsExecutor = (IJavaScriptExecutor)driver;
-            jsExecutor.ExecuteScript("arguments[0].scrollIntoView(true);", submitButton);
+            // Scroll to the submit button
+            js.ExecuteScript("arguments[0].scrollIntoView(true);", submitButton);
 
-            // Várakozás, hogy a gomb kattintható legyen
-            wait.Until(ExpectedConditions.ElementToBeClickable(submitButton));
+            // Wait for any overlay to disappear (optional, in case it's a temporary message)
+            Thread.Sleep(3000); // Give some time for any overlay to disappear
 
-            // Komment beírása
+            // Remove any overlay if it's still visible using JavaScript (optional, try this if overlay persists)
+            js.ExecuteScript("var overlay = document.querySelector('div[style*=\"position: fixed\"][style*=\"background-color: green\"]'); if (overlay) overlay.style.display = 'none';");
+
+
+            // Submit comment
             commentBox.SendKeys("Ez egy teszt komment!");
-
-            // Komment gombra kattintás
             submitButton.Click();
 
-            // Várakozás a komment és értékelés frissülésére
-            Thread.Sleep(2000);  // Várakozás, hogy a komment és értékelés frissüljön
+            Thread.Sleep(2000);  // Wait for comment to be posted
 
-            // Ellenőrizze, hogy a komment megjelenik-e az értékelések között
+            // Verify comment appears
             var ratingSection = wait.Until(ExpectedConditions.ElementIsVisible(By.CssSelector(".ratings-section")));
-            Microsoft.VisualStudio.TestTools.UnitTesting.Assert.IsTrue(ratingSection.Text.Contains("Ez egy teszt komment!"), "A komment nem jelent meg.");
+            Microsoft.VisualStudio.TestTools.UnitTesting.Assert.IsTrue(ratingSection.Text.Contains("Ez egy teszt komment!"), "Comment not found in ratings.");
 
-            // Ellenőrizze, hogy a csillagos értékelés (3 csillag) megjelenik-e
+            // Verify rating appears correctly
             var ratingStars = ratingSection.FindElements(By.CssSelector(".star"));
-            int filledStars = 0;
-            foreach (var star in ratingStars)
-            {
-                if (star.Text == "★") filledStars++;
-            }
+            int filledStars = ratingStars.Count(star => star.Text == "★");
 
-            // Kiírja a csillagos értékelést
-            Console.WriteLine($"A csillagos értékelés: {filledStars} csillag");
-
-            Microsoft.VisualStudio.TestTools.UnitTesting.Assert.AreEqual(3, filledStars, "A csillagos értékelés nem egyezik a várt értékkel.");
+            Console.WriteLine($"Star rating detected: {filledStars} stars");
+            Microsoft.VisualStudio.TestTools.UnitTesting.Assert.AreEqual(3, filledStars, "Star rating does not match expected value.");
         }
+
+
+
+
 
         [TestCleanup]
         public void TearDown()
